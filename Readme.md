@@ -22,4 +22,7 @@ Create a report describing how to build the model, how to use cross validation, 
 
 The submission should consist of a link to (this) Github repo with the R markdown and compiled HTML file describing the analysis. Please constrain the text of the writeup to < 2000 words and the number of figures to be
 less than 5. It will make it easier for the graders to submit a repo with a gh-pages branch so the HTML page can be viewed online.    
+
+     
+
 ----------
