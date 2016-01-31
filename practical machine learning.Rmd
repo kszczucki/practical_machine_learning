@@ -1,0 +1,103 @@
+---
+title: "Practical Machine learning - course project"
+author: "Krystian Szczucki"
+date: "2016-01-30"
+output: html_document
+---
+
+## Executive Summary
+
+   One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it.
+   Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).
+
+ In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of this 6 participants and predict the manner in which they did the exercise. 
+
+ More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+ 
+## Input Data
+```{r}
+library(dplyr)
+library(caret)
+library(rpart.plot)
+library(rpart)
+library(rattle)
+```
+
+```{r, eval = FALSE}
+## Import the data, read downloaded csv's with empty values treated as NA
+TrainingfileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TestingfileURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(TrainingfileURL,destfile = "training_coursera8.csv")
+download.file(TestingfileURL,destfile = "testing_coursera8.csv")
+PTraining <- read.csv(file = "pml-training.csv",header = TRUE, na.strings = c("NA",""))
+PTesting <- read.csv(file = "pml-testing.csv",header = TRUE, na.strings = c("NA",""))
+dim(PTesting)
+dim(PTraining)
+```
+Both datasets have equeal number of columns (excluding the final column representing the A-E class and problem_id).
+
+## Data processing
+Most od the columns are mostly filled with NA so I decided to remove them, alongside with any extraneus column (First seven columns are unnecessary for our purpose). We can simply add all NA values in ColSum function and choose only those without NA's. 
+
+```{r, cache=TRUE}
+PTraining <- PTraining[,colSums(is.na(PTraining)) == "0"]
+PTesting <- PTesting[,colSums(is.na(PTesting)) == "0"]
+PTraining <- PTraining[,-c(1:7)]
+PTesting <- PTesting[,-c(1:7)]
+dim(PTesting)
+dim(PTraining)
+```
+
+## Data split
+
+To get the out of sample error, sometimes calles generalization error, we'll split the cleaned training set PTraining into a training set (training, 70%) for prediction and a testing set (testing 30%) to compute the out-of-sample errors and perform cross-validation.
+
+
+```{r,cache=TRUE}
+library(caret)
+inTrain <- createDataPartition(y = PTraining$classe,p = 0.7, list = FALSE)
+training <- PTraining[inTrain,]
+testing <- PTraining[-inTrain,]
+```
+
+## Prediction Algorithms
+
+I decided to use classification tree as my first algorithm of choice.
+
+```{r,cache=TRUE}
+set.seed(12345)
+modFit <- train(training$classe ~.,data = training,method = "rpart")
+modFit
+```
+Accuracy rate is 0.51 (very low) and so the out-of-sample error rate is 0.5. Using classification tree without any preprocessing and/or cross validation does not predict the outcome classe very well.
+
+```{r,cache=TRUE}
+set.seed(12345)
+modFit <- train(training$classe ~.,data = training,method = "rpart",
+                preProcess = c("center","scale"), 
+                trControl = trainControl(method = "cv",number = 5))
+modFit
+```
+
+The accuracy didn't improve after our actions and it was to low to perform prediction, so i decided to try random forest with cross validation and preprocessing instead.
+
+```{r,cache=TRUE}
+set.seed(12345)
+modFit <- train(training$classe ~.,data = training,method = "rf", 
+                preProcess = c("center","scale"), 
+                trControl = trainControl(method = "cv",number = 5))
+modFit
+```
+The accuracy rate is really nice (0.9914098) and the estimated out-of-sample error is 1.000 minus the model's accuracy, so in this case = 0.0085902
+
+```{r,cache=TRUE}
+set.seed(12345)
+prediction <- predict(object = modFit,newdata = testing)
+confusionMatrix(data = prediction,reference = testing$classe)
+```
+
+## Predicted Results
+
+```{r,cache=TRUE}
+predict(object = modFit,newdata = PTesting)
+```
