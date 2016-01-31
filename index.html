@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="UTF-8">
+    <title>Practical machine learning by kszczucki</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+    <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+  </head>
+  <body>
+    <section class="page-header">
+      <h1 class="project-name">Practical machine learning</h1>
+      <h2 class="project-tagline"></h2>
+      <a href="https://github.com/kszczucki/practical_machine_learning" class="btn">View on GitHub</a>
+      <a href="https://github.com/kszczucki/practical_machine_learning/zipball/master" class="btn">Download .zip</a>
+      <a href="https://github.com/kszczucki/practical_machine_learning/tarball/master" class="btn">Download .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+      <p></p>
+
+<p></p>
+
+<p></p>Practical Machine learning - course project
+
+
+
+<p>
+</p>
+
+
+
+
+
+
+
+code{white-space: pre;}
+
+<p></p>
+
+
+
+
+  pre:not([class]) {
+    background-color: white;
+  }
+
+
+
+
+<p></p>
+
+<p></p>
+
+
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+code {
+  color: inherit;
+  background-color: rgba(0, 0, 0, 0.04);
+}
+img { 
+  max-width:100%; 
+  height: auto; 
+}
+
+
+<div>
+
+
+<div id="header">
+<h1>
+<a id="practical-machine-learning---course-project" class="anchor" href="#practical-machine-learning---course-project" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Practical Machine learning - course project</h1>
+<h4>
+<a id="krystian-szczucki" class="anchor" href="#krystian-szczucki" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><em>Krystian Szczucki</em>
+</h4>
+<h4>
+<a id="2016-01-30" class="anchor" href="#2016-01-30" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a><em>2016-01-30</em>
+</h4>
+</div>
+
+<div id="executive-summary">
+<h2>
+<a id="executive-summary" class="anchor" href="#executive-summary" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Executive Summary</h2>
+<p>One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E).</p>
+<p>In this project, our goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of this 6 participants and predict the manner in which they did the exercise.</p>
+<p>More information is available from the website here: <a href="http://groupware.les.inf.puc-rio.br/har">http://groupware.les.inf.puc-rio.br/har</a> (see the section on the Weight Lifting Exercise Dataset).</p>
+</div>
+
+<div id="input-data">
+<h2>
+<a id="input-data" class="anchor" href="#input-data" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Input Data</h2>
+<pre><code>library(dplyr)
+library(caret)
+library(rpart.plot)
+library(rpart)
+library(rattle)</code></pre>
+<pre><code>## Import the data, read downloaded csv's with empty values treated as NA
+TrainingfileURL &lt;- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+TestingfileURL &lt;- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(TrainingfileURL,destfile = "training_coursera8.csv")
+download.file(TestingfileURL,destfile = "testing_coursera8.csv")
+PTraining &lt;- read.csv(file = "pml-training.csv",header = TRUE, na.strings = c("NA",""))
+PTesting &lt;- read.csv(file = "pml-testing.csv",header = TRUE, na.strings = c("NA",""))
+dim(PTesting)</code></pre>
+<pre><code>## [1]  20 160</code></pre>
+<pre><code>dim(PTraining)</code></pre>
+<pre><code>## [1] 19622   160</code></pre>
+<p>Both datasets have equeal number of columns (excluding the final column representing the A-E class and problem_id).</p>
+</div>
+
+<div id="data-processing">
+<h2>
+<a id="data-processing" class="anchor" href="#data-processing" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data processing</h2>
+<p>Most od the columns are mostly filled with NA so I decided to remove them, alongside with any extraneus column (First seven columns are unnecessary for our purpose). We can simply add all NA values in ColSum function and choose only those without NA’s.</p>
+<pre><code>PTraining &lt;- PTraining[,colSums(is.na(PTraining)) == "0"]
+PTesting &lt;- PTesting[,colSums(is.na(PTesting)) == "0"]
+PTraining &lt;- PTraining[,-c(1:7)]
+PTesting &lt;- PTesting[,-c(1:7)]
+dim(PTesting)</code></pre>
+<pre><code>## [1] 20 53</code></pre>
+<pre><code>dim(PTraining)</code></pre>
+<pre><code>## [1] 19622    53</code></pre>
+</div>
+
+<div id="data-split">
+<h2>
+<a id="data-split" class="anchor" href="#data-split" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Data split</h2>
+<p>To get the out of sample error, sometimes calles generalization error, we’ll split the cleaned training set PTraining into a training set (training, 70%) for prediction and a testing set (testing 30%) to compute the out-of-sample errors and perform cross-validation.</p>
+<pre><code>library(caret)
+inTrain &lt;- createDataPartition(y = PTraining$classe,p = 0.7, list = FALSE)
+training &lt;- PTraining[inTrain,]
+testing &lt;- PTraining[-inTrain,]</code></pre>
+</div>
+
+<div id="prediction-algorithms">
+<h2>
+<a id="prediction-algorithms" class="anchor" href="#prediction-algorithms" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Prediction Algorithms</h2>
+<p>I decided to use classification tree as my first algorithm of choice.</p>
+<pre><code>set.seed(12345)
+modFit &lt;- train(training$classe ~.,data = training,method = "rpart")
+modFit</code></pre>
+<pre><code>## CART 
+## 
+## 13737 samples
+##    52 predictor
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## No pre-processing
+## Resampling: Bootstrapped (25 reps) 
+## Summary of sample sizes: 13737, 13737, 13737, 13737, 13737, 13737, ... 
+## Resampling results across tuning parameters:
+## 
+##   cp          Accuracy   Kappa       Accuracy SD  Kappa SD  
+##   0.03753433  0.4960368  0.33989533  0.05234053   0.08646693
+##   0.05987862  0.4019439  0.18473730  0.05703127   0.09518747
+##   0.11585800  0.3270796  0.06479018  0.04208576   0.06357614
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was cp = 0.03753433.</code></pre>
+<p>Accuracy rate is 0.51 (very low) and so the out-of-sample error rate is 0.5. Using classification tree without any preprocessing and/or cross validation does not predict the outcome classe very well.</p>
+<pre><code>set.seed(12345)
+modFit &lt;- train(training$classe ~.,data = training,method = "rpart",
+                preProcess = c("center","scale"), 
+                trControl = trainControl(method = "cv",number = 5))
+modFit</code></pre>
+<pre><code>## CART 
+## 
+## 13737 samples
+##    52 predictor
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## Pre-processing: centered (52), scaled (52) 
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 10989, 10989, 10989, 10990, 10991 
+## Resampling results across tuning parameters:
+## 
+##   cp          Accuracy   Kappa       Accuracy SD  Kappa SD  
+##   0.03753433  0.4782630  0.31092170  0.06204132   0.10256063
+##   0.05987862  0.3893984  0.16468483  0.05158827   0.08803871
+##   0.11585800  0.3158554  0.04813049  0.04306175   0.06596602
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was cp = 0.03753433.</code></pre>
+<p>The accuracy didn’t improve after our actions and it was to low to perform prediction, so i decided to try random forest with cross validation and preprocessing instead.</p>
+<pre><code>set.seed(12345)
+modFit &lt;- train(training$classe ~.,data = training,method = "rf", 
+                preProcess = c("center","scale"), 
+                trControl = trainControl(method = "cv",number = 5))
+modFit</code></pre>
+<pre><code>## Random Forest 
+## 
+## 13737 samples
+##    52 predictor
+##     5 classes: 'A', 'B', 'C', 'D', 'E' 
+## 
+## Pre-processing: centered (52), scaled (52) 
+## Resampling: Cross-Validated (5 fold) 
+## Summary of sample sizes: 10989, 10989, 10989, 10990, 10991 
+## Resampling results across tuning parameters:
+## 
+##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
+##    2    0.9913375  0.9890414  0.001843857  0.002333025
+##   27    0.9898084  0.9871071  0.002373267  0.003002131
+##   52    0.9820916  0.9773443  0.005890407  0.007450785
+## 
+## Accuracy was used to select the optimal model using  the largest value.
+## The final value used for the model was mtry = 2.</code></pre>
+<p>The accuracy rate is really nice (0.9914098) and the estimated out-of-sample error is 1.000 minus the model’s accuracy, so in this case = 0.0085902</p>
+<pre><code>set.seed(12345)
+prediction &lt;- predict(object = modFit,newdata = testing)
+confusionMatrix(data = prediction,reference = testing$classe)</code></pre>
+<pre><code>## Confusion Matrix and Statistics
+## 
+##           Reference
+## Prediction    A    B    C    D    E
+##          A 1672   11    0    0    0
+##          B    2 1123   15    0    0
+##          C    0    5 1008   26    0
+##          D    0    0    3  938    4
+##          E    0    0    0    0 1078
+## 
+## Overall Statistics
+##                                           
+##                Accuracy : 0.9888          
+##                  95% CI : (0.9858, 0.9913)
+##     No Information Rate : 0.2845          
+##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16       
+##                                           
+##                   Kappa : 0.9858          
+##  Mcnemar's Test P-Value : NA              
+## 
+## Statistics by Class:
+## 
+##                      Class: A Class: B Class: C Class: D Class: E
+## Sensitivity            0.9988   0.9860   0.9825   0.9730   0.9963
+## Specificity            0.9974   0.9964   0.9936   0.9986   1.0000
+## Pos Pred Value         0.9935   0.9851   0.9702   0.9926   1.0000
+## Neg Pred Value         0.9995   0.9966   0.9963   0.9947   0.9992
+## Prevalence             0.2845   0.1935   0.1743   0.1638   0.1839
+## Detection Rate         0.2841   0.1908   0.1713   0.1594   0.1832
+## Detection Prevalence   0.2860   0.1937   0.1766   0.1606   0.1832
+## Balanced Accuracy      0.9981   0.9912   0.9880   0.9858   0.9982</code></pre>
+</div>
+
+<div id="predicted-results">
+<h2>
+<a id="predicted-results" class="anchor" href="#predicted-results" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Predicted Results</h2>
+<pre><code>predict(object = modFit,newdata = PTesting)</code></pre>
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
+## Levels: A B C D E</code></pre>
+</div>
+
+<p></p>
+</div>
+
+
+
+
+
+
+
+<p>
+</p>
+
+      <footer class="site-footer">
+        <span class="site-footer-owner"><a href="https://github.com/kszczucki/practical_machine_learning">Practical machine learning</a> is maintained by <a href="https://github.com/kszczucki">kszczucki</a>.</span>
+
+        <span class="site-footer-credits">This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the <a href="https://github.com/jasonlong/cayman-theme">Cayman theme</a> by <a href="https://twitter.com/jasonlong">Jason Long</a>.</span>
+      </footer>
+
+    </section>
+
+  
+  </body>
+</html>
